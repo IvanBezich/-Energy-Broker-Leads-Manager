@@ -7,6 +7,40 @@
 </head>
 <body>
     <h1>Mis Leads de Energía</h1>
-    <p>Próximamente, aquí verás la lista de tus leads...</p>
+
+    <p>Conectando a la base de datos...</p>
+
+    <div id="leads-container">
+        </div>
+
+    <script type="module">
+      // Initialize Firebase
+     // Import the functions you need from the SDKs you need
+import { initializeApp } from "firebase/app";
+import { getAnalytics } from "firebase/analytics";
+// TODO: Add SDKs for Firebase products that you want to use
+// https://firebase.google.com/docs/web/setup#available-libraries
+
+// Your web app's Firebase configuration
+// For Firebase JS SDK v7.20.0 and later, measurementId is optional
+const firebaseConfig = {
+  apiKey: "AIzaSyAmZZPvjlfFBJYGccwpwpzvzdydmd7skFo",
+  authDomain: "energy-broker-leads-manager.firebaseapp.com",
+  projectId: "energy-broker-leads-manager",
+  storageBucket: "energy-broker-leads-manager.firebasestorage.app",
+  messagingSenderId: "1016824630391",
+  appId: "1:1016824630391:web:4705d1dfde6bfee9bfca72",
+  measurementId: "G-BN2684HFCC"
+};
+
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
+const analytics = getAnalytics(app);
+
+    </script>
+
 </body>
 </html>
+
+
+
