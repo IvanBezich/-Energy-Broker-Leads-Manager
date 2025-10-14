@@ -2,22 +2,21 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale-1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Energy Broker Leads Manager</title>
     <style>
         body { font-family: sans-serif; margin: 2em; background-color: #f4f4f9; }
         h1, h2 { color: #333; }
-        #leads-container { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 1em; margin-top: 2em;}
-        .lead-card { background-color: white; border: 1px solid #ddd; border-radius: 8px; padding: 1em; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        #leads-container { display: grid; grid-template-columns: repeat(auto-fill, minmax(350px, 1fr)); gap: 1.5em; margin-top: 2em;}
+        .lead-card { background-color: white; border: 1px solid #ddd; border-radius: 8px; padding: 1.5em; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
         .lead-card h2 { margin-top: 0; color: #0056b3; }
-        input[type="text"], input[type="tel"] { width: 95%; padding: 8px; margin-bottom: 10px; border-radius: 4px; border: 1px solid #ccc; }
+        input[type="text"], input[type="tel"], input[type="number"], textarea { width: 95%; padding: 8px; margin-bottom: 10px; border-radius: 4px; border: 1px solid #ccc; }
         button { background-color: #28a745; color: white; padding: 10px 15px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; }
         button:hover { opacity: 0.9; }
         .delete-btn { background-color: #dc3545; margin-top: 10px; }
         .edit-btn { background-color: #007bff; margin-top: 10px; margin-right: 5px;}
-        /* Estilos para el Modal de Edición */
         .modal { display: none; position: fixed; z-index: 1; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.4); }
-        .modal-content { background-color: #fefefe; margin: 15% auto; padding: 20px; border: 1px solid #888; width: 80%; max-width: 500px; border-radius: 8px; }
+        .modal-content { background-color: #fefefe; margin: 10% auto; padding: 20px; border: 1px solid #888; width: 80%; max-width: 600px; border-radius: 8px; }
         .close-btn { color: #aaa; float: right; font-size: 28px; font-weight: bold; cursor: pointer; }
     </style>
 </head>
@@ -26,10 +25,16 @@
 
     <form id="add-lead-form" class="lead-card">
         <h2>Agregar Nuevo Lead</h2>
-        <p><input type="text" id="businessName" placeholder="Nombre del Negocio" required></p>
-        <p><input type="text" id="dmFirstName" placeholder="Nombre del Contacto"></p>
-        <p><input type="text" id="dmLastName" placeholder="Apellido del Contacto"></p>
-        <p><input type="tel" id="dmPhone" placeholder="Teléfono"></p>
+        <input type="text" id="businessName" placeholder="Nombre del Negocio" required>
+        <input type="text" id="dmFirstName" placeholder="Nombre del Contacto">
+        <input type="text" id="dmLastName" placeholder="Apellido del Contacto">
+        <input type="tel" id="dmPhone" placeholder="Teléfono">
+        <input type="text" id="serviceAddress" placeholder="Dirección del Servicio">
+        <input type="text" id="esiid" placeholder="ESIID">
+        <input type="text" id="leadProgress" placeholder="Progreso del Lead (Ej: Nuevo, Calificado)">
+        <input type="number" id="squareFootage" placeholder="Metros Cuadrados (Square Foot)">
+        <input type="text" id="businessType" placeholder="Tipo de Negocio">
+        <textarea id="notes" placeholder="Notas"></textarea>
         <button type="submit">Guardar Lead</button>
     </form>
 
@@ -42,10 +47,16 @@
             <h2>Editar Lead</h2>
             <form id="edit-lead-form">
                 <input type="hidden" id="editLeadId">
-                <p><input type="text" id="editBusinessName" placeholder="Nombre del Negocio" required></p>
-                <p><input type="text" id="editDmFirstName" placeholder="Nombre del Contacto"></p>
-                <p><input type="text" id="editDmLastName" placeholder="Apellido del Contacto"></p>
-                <p><input type="tel" id="editDmPhone" placeholder="Teléfono"></p>
+                <input type="text" id="editBusinessName" placeholder="Nombre del Negocio" required>
+                <input type="text" id="editDmFirstName" placeholder="Nombre del Contacto">
+                <input type="text" id="editDmLastName" placeholder="Apellido del Contacto">
+                <input type="tel" id="editDmPhone" placeholder="Teléfono">
+                <input type="text" id="editServiceAddress" placeholder="Dirección del Servicio">
+                <input type="text" id="editEsiid" placeholder="ESIID">
+                <input type="text" id="editLeadProgress" placeholder="Progreso del Lead">
+                <input type="number" id="editSquareFootage" placeholder="Metros Cuadrados (Square Foot)">
+                <input type="text" id="editBusinessType" placeholder="Tipo de Negocio">
+                <textarea id="editNotes" placeholder="Notas"></textarea>
                 <button type="submit">Guardar Cambios</button>
             </form>
         </div>
@@ -75,70 +86,74 @@
       const editLeadForm = document.getElementById('edit-lead-form');
       const closeModalBtn = document.querySelector('.close-btn');
 
-      // --- GUARDAR NUEVO LEAD ---
       addLeadForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         try {
             await addDoc(leadsCollection, {
                 businessName: addLeadForm.businessName.value,
-                dm: { firstName: addLeadForm.dmFirstName.value, lastName: addLeadForm.dmLastName.value, phone: addLeadForm.dmPhone.value, email: "" },
-                leadProgress: "Nuevo", createdAt: serverTimestamp()
+                dm: { firstName: addLeadForm.dmFirstName.value, lastName: addLeadForm.dmLastName.value, phone: addLeadForm.dmPhone.value },
+                address: { fullAddress: addLeadForm.serviceAddress.value },
+                esiid: addLeadForm.esiid.value,
+                leadProgress: addLeadForm.leadProgress.value,
+                squareFootage: Number(addLeadForm.squareFootage.value) || null,
+                businessType: addLeadForm.businessType.value,
+                notes: addLeadForm.notes.value,
+                createdAt: serverTimestamp()
             });
             addLeadForm.reset();
             CargarLeads();
         } catch (error) { console.error("Error al guardar: ", error); alert("Error al guardar."); }
       });
 
-      // --- MANEJAR CLICS EN LA LISTA (EDITAR Y ELIMINAR) ---
       leadsContainer.addEventListener('click', async (e) => {
           const leadId = e.target.dataset.id;
           if (e.target.classList.contains('delete-btn')) {
               if (confirm("¿Estás seguro de que querés eliminar este lead?")) {
-                  try {
-                      await deleteDoc(doc(db, "leads", leadId));
-                      CargarLeads();
-                  } catch (error) { console.error("Error al eliminar: ", error); alert("Error al eliminar."); }
+                  try { await deleteDoc(doc(db, "leads", leadId)); CargarLeads(); } catch (error) { console.error("Error al eliminar: ", error); alert("Error al eliminar."); }
               }
           }
           if (e.target.classList.contains('edit-btn')) {
-              const docRef = doc(db, "leads", leadId);
-              const docSnap = await getDoc(docRef);
+              const docSnap = await getDoc(doc(db, "leads", leadId));
               if (docSnap.exists()) {
                   const lead = docSnap.data();
                   editLeadForm.editLeadId.value = leadId;
-                  editLeadForm.editBusinessName.value = lead.businessName;
-                  editLeadForm.editDmFirstName.value = lead.dm.firstName;
-                  editLeadForm.editDmLastName.value = lead.dm.lastName;
-                  editLeadForm.editDmPhone.value = lead.dm.phone;
+                  editLeadForm.editBusinessName.value = lead.businessName || '';
+                  editLeadForm.editDmFirstName.value = lead.dm?.firstName || '';
+                  editLeadForm.editDmLastName.value = lead.dm?.lastName || '';
+                  editLeadForm.editDmPhone.value = lead.dm?.phone || '';
+                  editLeadForm.editServiceAddress.value = lead.address?.fullAddress || '';
+                  editLeadForm.editEsiid.value = lead.esiid || '';
+                  editLeadForm.editLeadProgress.value = lead.leadProgress || '';
+                  editLeadForm.editSquareFootage.value = lead.squareFootage || '';
+                  editLeadForm.editBusinessType.value = lead.businessType || '';
+                  editLeadForm.editNotes.value = lead.notes || '';
                   editModal.style.display = "block";
               }
           }
       });
 
-      // --- GUARDAR CAMBIOS DEL MODAL DE EDICIÓN ---
       editLeadForm.addEventListener('submit', async (e) => {
           e.preventDefault();
           const leadId = editLeadForm.editLeadId.value;
-          const docRef = doc(db, "leads", leadId);
           try {
-              await updateDoc(docRef, {
+              await updateDoc(doc(db, "leads", leadId), {
                   businessName: editLeadForm.editBusinessName.value,
-                  dm: {
-                      firstName: editLeadForm.editDmFirstName.value,
-                      lastName: editLeadForm.editDmLastName.value,
-                      phone: editLeadForm.editDmPhone.value
-                  }
+                  dm: { firstName: editLeadForm.editDmFirstName.value, lastName: editLeadForm.editDmLastName.value, phone: editLeadForm.editDmPhone.value },
+                  address: { fullAddress: editLeadForm.editServiceAddress.value },
+                  esiid: editLeadForm.editEsiid.value,
+                  leadProgress: editLeadForm.editLeadProgress.value,
+                  squareFootage: Number(editLeadForm.editSquareFootage.value) || null,
+                  businessType: editLeadForm.editBusinessType.value,
+                  notes: editLeadForm.editNotes.value
               });
               editModal.style.display = "none";
               CargarLeads();
           } catch (error) { console.error("Error al actualizar: ", error); alert("Error al actualizar."); }
       });
       
-      // --- CERRAR MODAL ---
       closeModalBtn.onclick = () => { editModal.style.display = "none"; }
       window.onclick = (event) => { if (event.target == editModal) { editModal.style.display = "none"; } }
 
-      // --- CARGAR LEADS (MODIFICADA para añadir botón de Editar) ---
       async function CargarLeads() {
         const statusDiv = document.getElementById('status');
         try {
@@ -149,20 +164,6 @@
                 const leadCardHTML = `
                     <div class="lead-card">
                         <h2>${lead.businessName || 'S/N'}</h2>
-                        <p><strong>Contacto:</strong> ${lead.dm.firstName || ''} ${lead.dm.lastName || ''}</p>
-                        <p><strong>Teléfono:</strong> ${lead.dm.phone || 'N/A'}</p>
-                        <p><strong>Progreso:</strong> ${lead.leadProgress || 'N/A'}</p>
-                        <button class="edit-btn" data-id="${doc.id}">Editar</button>
-                        <button class="delete-btn" data-id="${doc.id}">Eliminar</button>
-                    </div>
-                `;
-                leadsContainer.innerHTML += leadCardHTML;
-            });
-            statusDiv.style.display = 'none';
-        } catch (error) { console.error("Error al cargar: ", error); }
-      }
-
-      CargarLeads();
-    </script>
-</body>
-</html>
+                        <p><strong>Contacto:</strong> ${lead.dm?.firstName || ''} ${lead.dm?.lastName || ''}</p>
+                        <p><strong>Teléfono:</strong> ${lead.dm?.phone || 'N/A'}</p>
+                        <p><strong>Dirección:</strong> ${lead.address?.fullAddress || 'N/A'}</p
