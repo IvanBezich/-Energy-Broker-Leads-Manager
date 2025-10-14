@@ -75,139 +75,98 @@
 
     <div id="edit-modal" class="modal">...</div>
 
-    <script type="module">
+   <script type="module">
+      // 1. IMPORTACIONES: Traemos las herramientas que necesitamos de Firebase
       import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-      import { getFirestore, collection, getDocs, addDoc, serverTimestamp, doc, deleteDoc, getDoc, updateDoc, query, orderBy } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+      import { getFirestore, collection, getDocs, addDoc, serverTimestamp, doc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
-      // --- Diccionarios de Traducciones (actualizados) ---
-      const translations = {
-          es: {
-              cardView: "Vista Tarjetas", listView: "Vista Lista", businessNameHeader: "Nombre Negocio", 
-              dateHeader: "Fecha de Entrada", progressHeader: "Progreso", contactHeader: "Contacto",
-              phoneHeader: "Teléfono", actionsHeader: "Acciones", /* ... otros textos ... */
-          },
-          en: {
-              cardView: "Card View", listView: "List View", businessNameHeader: "Business Name",
-              dateHeader: "Entry Date", progressHeader: "Progress", contactHeader: "Contact",
-              phoneHeader: "Phone", actionsHeader: "Actions", /* ... other texts ... */
-          }
+      // 2. CONFIGURACIÓN: Tu llave secreta para conectar a tu proyecto
+      const firebaseConfig = {
+        apiKey: "AIzaSyAmZZPvjlfFBJYGccwpwpzvzdydmd7skFo",
+        authDomain: "energy-broker-leads-manager.firebaseapp.com",
+        projectId: "energy-broker-leads-manager",
+        storageBucket: "energy-broker-leads-manager.appspot.com",
+        messagingSenderId: "1016824630391",
+        appId: "1:1016824630391:web:4705d1dfde6bfee9bfca72",
+        measurementId: "G-BN2684HFCC"
       };
-      
-      const firebaseConfig = { /* ... tu config ... */ };
+
+      // 3. INICIALIZACIÓN: Conectamos a Firebase y a la base de datos
       const app = initializeApp(firebaseConfig);
       const db = getFirestore(app);
       const leadsCollection = collection(db, "leads");
 
-      // --- MANEJO DE VISTAS Y ORDENAMIENTO ---
-      let currentView = 'card';
-      let loadedLeads = []; // Guardamos los leads aquí para ordenarlos sin volver a llamar a Firebase
-      let currentSort = { key: 'createdAt', direction: 'desc' };
-      
-      const cardViewBtn = document.getElementById('card-view-btn');
-      const listViewBtn = document.getElementById('list-view-btn');
-      const cardViewContainer = document.getElementById('card-view-container');
-      const listViewContainer = document.getElementById('list-view-container');
-      const listViewTbody = document.getElementById('list-view-tbody');
-      
-      cardViewBtn.addEventListener('click', () => switchView('card'));
-      listViewBtn.addEventListener('click', () => switchView('list'));
+      // --- CÓDIGO PARA GUARDAR EL FORMULARIO ---
+      const addLeadForm = document.getElementById('add-lead-form');
+      addLeadForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const businessName = addLeadForm.businessName.value;
+        const dmFirstName = addLeadForm.dmFirstName.value;
+        const dmLastName = addLeadForm.dmLastName.value;
+        const dmPhone = addLeadForm.dmPhone.value;
+        try {
+            await addDoc(leadsCollection, {
+                businessName: businessName,
+                dm: { firstName: dmFirstName, lastName: dmLastName, phone: dmPhone, email: "" },
+                leadProgress: "Nuevo",
+                createdAt: serverTimestamp()
+            });
+            addLeadForm.reset();
+            CargarLeads();
+        } catch (error) {
+            console.error("Error al guardar el lead: ", error);
+            alert("Hubo un error al guardar el lead.");
+        }
+      });
 
-      function switchView(view) {
-          currentView = view;
-          cardViewBtn.classList.toggle('active', view === 'card');
-          listViewBtn.classList.toggle('active', view === 'list');
-          cardViewContainer.classList.toggle('hidden', view !== 'card');
-          listViewContainer.classList.toggle('hidden', view !== 'list');
-      }
-
-      document.querySelector('.leads-table thead').addEventListener('click', (e) => {
-          if (e.target.tagName === 'TH') {
-              const sortKey = e.target.dataset.sortBy;
-              if (!sortKey) return;
-              
-              const direction = (currentSort.key === sortKey && currentSort.direction === 'asc') ? 'desc' : 'asc';
-              currentSort = { key: sortKey, direction: direction };
-              
-              sortLeads();
-              RenderLeads();
+      // --- CÓDIGO PARA MANEJAR LOS CLICS DE ELIMINAR ---
+      const leadsContainer = document.getElementById('leads-container');
+      leadsContainer.addEventListener('click', async (e) => {
+          if (e.target.classList.contains('delete-btn')) {
+              const leadId = e.target.dataset.id;
+              if (confirm("¿Estás seguro de que querés eliminar este lead?")) {
+                  try {
+                      const docRef = doc(db, "leads", leadId);
+                      await deleteDoc(docRef);
+                      CargarLeads();
+                  } catch (error) {
+                      console.error("Error al eliminar el lead: ", error);
+                      alert("Hubo un error al eliminar el lead.");
+                  }
+              }
           }
       });
 
-      function sortLeads() {
-          loadedLeads.sort((a, b) => {
-              const valA = a[currentSort.key] || '';
-              const valB = b[currentSort.key] || '';
-              
-              if (valA < valB) return currentSort.direction === 'asc' ? -1 : 1;
-              if (valA > valB) return currentSort.direction === 'asc' ? 1 : -1;
-              return 0;
-          });
-      }
-      
-      // --- LÓGICA DE DATOS ---
+      // --- Función para Cargar Leads ---
       async function CargarLeads() {
-          const statusDiv = document.getElementById('status');
-          try {
-              const q = query(leadsCollection, orderBy("createdAt", "desc"));
-              const querySnapshot = await getDocs(q);
-              
-              loadedLeads = []; // Limpiamos la lista local
-              querySnapshot.forEach((doc) => {
-                  loadedLeads.push({ id: doc.id, ...doc.data() });
-              });
-              
-              sortLeads(); // Ordenamos la lista según el criterio actual
-              RenderLeads(); // Dibujamos los datos en la UI
-              
-              statusDiv.style.display = 'none';
-          } catch (error) { console.error("Error al cargar: ", error); }
+        const statusDiv = document.getElementById('status');
+        try {
+            const querySnapshot = await getDocs(leadsCollection);
+            leadsContainer.innerHTML = '';
+            if (querySnapshot.empty) {
+                statusDiv.innerHTML = '<p>No se encontraron leads.</p>';
+                return;
+            }
+            querySnapshot.forEach((doc) => {
+                const lead = doc.data();
+                const leadCardHTML = `
+                    <div class="lead-card">
+                        <h2>${lead.businessName || 'Sin Nombre'}</h2>
+                        <p><strong>Contacto:</strong> ${lead.dm.firstName || ''} ${lead.dm.lastName || ''}</p>
+                        <p><strong>Teléfono:</strong> ${lead.dm.phone || 'N/A'}</p>
+                        <p><strong>Progreso:</strong> ${lead.leadProgress || 'N/A'}</p>
+                        <button class="delete-btn" data-id="${doc.id}">Eliminar</button>
+                    </div>
+                `;
+                leadsContainer.innerHTML += leadCardHTML;
+            });
+            statusDiv.style.display = 'none';
+        } catch (error) {
+            console.error("Error al cargar los leads: ", error);
+            statusDiv.innerHTML = '<p>Hubo un error al conectar con la base de datos.</p>';
+        }
       }
 
-      function RenderLeads() {
-          const lang = localStorage.getItem('language') || 'es';
-          cardViewContainer.innerHTML = '';
-          listViewTbody.innerHTML = '';
-
-          loadedLeads.forEach(lead => {
-              // --- Renderizar Vista de Tarjeta ---
-              const cardHTML = `
-                  <div class="lead-card">
-                      <h2>${lead.businessName || 'S/N'}</h2>
-                      <p><strong>${translations[lang].contactHeader}:</strong> ${lead.dm?.firstName || ''} ${lead.dm?.lastName || ''}</p>
-                      <p><strong>${translations[lang].phoneHeader}:</strong> ${lead.dm?.phone || 'N/A'}</p>
-                      <p><strong>Email:</strong> ${lead.dm?.email || 'N/A'}</p>
-                      <p><strong>${translations[lang].progressHeader}:</strong> <span class="status-tag ${getProgressClass(lead.leadProgress)}">${lead.leadProgress || 'N/A'}</span></p>
-                      <div class="actions">
-                        <button class="edit-btn" data-id="${lead.id}">${translations[lang].editBtn}</button>
-                        <button class="delete-btn" data-id="${lead.id}">${translations[lang].deleteBtn}</button>
-                      </div>
-                  </div>`;
-              cardViewContainer.innerHTML += cardHTML;
-
-              // --- Renderizar Vista de Lista ---
-              const entryDate = lead.createdAt?.toDate ? lead.createdAt.toDate().toLocaleDateString() : 'N/A';
-              const listRowHTML = `
-                  <tr>
-                      <td>${lead.businessName || 'S/N'}</td>
-                      <td>${entryDate}</td>
-                      <td><span class="status-tag ${getProgressClass(lead.leadProgress)}">${lead.leadProgress || 'N/A'}</span></td>
-                      <td>${lead.dm?.firstName || ''} ${lead.dm?.lastName || ''}</td>
-                      <td>${lead.dm?.phone || 'N/A'}</td>
-                      <td>
-                        <button class="edit-btn" data-id="${lead.id}">${translations[lang].editBtn}</button>
-                        <button class="delete-btn" data-id="${lead.id}">${translations[lang].deleteBtn}</button>
-                      </td>
-                  </tr>`;
-              listViewTbody.innerHTML += listRowHTML;
-          });
-      }
-
-      // Resto del código (formularios, editar, eliminar, etc.) permanece casi igual, 
-      // asegurándose de llamar a CargarLeads() después de cada operación.
-
-      // Carga inicial
-      const initialLang = localStorage.getItem('language') || 'es';
-      setLanguage(initialLang); // Esto ahora también llama a CargarLeads()
+      // --- Ejecución inicial ---
+      CargarLeads();
     </script>
-</body>
-</html>
