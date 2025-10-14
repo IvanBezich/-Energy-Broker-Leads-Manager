@@ -13,8 +13,9 @@
         .lead-card p { margin: 0.5em 0; }
         .lead-card strong { color: #333; }
         input[type="text"], input[type="tel"] { width: 95%; padding: 8px; margin-bottom: 10px; border-radius: 4px; border: 1px solid #ccc; }
-        button { background-color: #28a745; color: white; padding: 10px 15px; border: none; border-radius: 4px; cursor: pointer; }
-        button:hover { background-color: #218838; }
+        button { background-color: #28a745; color: white; padding: 10px 15px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; }
+        button:hover { opacity: 0.9; }
+        .delete-btn { background-color: #dc3545; margin-top: 10px; } /* Estilo para el botón de eliminar */
     </style>
 </head>
 <body>
@@ -39,8 +40,8 @@
     <script type="module">
       // 1. Configuración de Firebase
       import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-      // 2. Importamos las funciones de Firestore que necesitamos (¡AÑADIMOS 'addDoc'!)
-      import { getFirestore, collection, getDocs, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+      // 2. Importamos las funciones de Firestore (¡AÑADIMOS 'doc' y 'deleteDoc'!)
+      import { getFirestore, collection, getDocs, addDoc, serverTimestamp, doc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
       // Tu configuración de Firebase
       const firebaseConfig = {
@@ -58,71 +59,76 @@
       const db = getFirestore(app);
       const leadsCollection = collection(db, "leads");
 
-      // --- CÓDIGO NUEVO PARA GUARDAR EL FORMULARIO ---
+      // --- CÓDIGO PARA GUARDAR EL FORMULARIO (sin cambios) ---
       const addLeadForm = document.getElementById('add-lead-form');
-
       addLeadForm.addEventListener('submit', async (e) => {
-        e.preventDefault(); // Esto evita que la página se recargue al enviar
-
-        // 1. Obtenemos los valores de los campos del formulario
+        e.preventDefault();
         const businessName = addLeadForm.businessName.value;
         const dmFirstName = addLeadForm.dmFirstName.value;
         const dmLastName = addLeadForm.dmLastName.value;
         const dmPhone = addLeadForm.dmPhone.value;
-
         try {
-            // 2. Creamos un nuevo objeto 'lead' con la estructura correcta
             await addDoc(leadsCollection, {
                 businessName: businessName,
-                dm: {
-                    firstName: dmFirstName,
-                    lastName: dmLastName,
-                    phone: dmPhone,
-                    email: "" // Dejamos el email vacío por ahora
-                },
-                leadProgress: "Nuevo", // Estado inicial
-                createdAt: serverTimestamp() // Fecha de creación automática
+                dm: { firstName: dmFirstName, lastName: dmLastName, phone: dmPhone, email: "" },
+                leadProgress: "Nuevo",
+                createdAt: serverTimestamp()
             });
-
-            // 3. Limpiamos el formulario y recargamos la lista de leads
             addLeadForm.reset();
-            CargarLeads(); // ¡Reutilizamos la función que ya teníamos!
-            console.log("¡Lead guardado con éxito!");
-
+            CargarLeads();
         } catch (error) {
             console.error("Error al guardar el lead: ", error);
-            alert("Hubo un error al guardar el lead. Intenta de nuevo.");
+            alert("Hubo un error al guardar el lead.");
         }
       });
-      // --- FIN DEL CÓDIGO NUEVO ---
 
-      // 3. Función para buscar los datos y mostrarlos (la teníamos de antes)
+      // --- CÓDIGO NUEVO PARA MANEJAR LOS CLICS DE ELIMINAR ---
+      const leadsContainer = document.getElementById('leads-container');
+      leadsContainer.addEventListener('click', async (e) => {
+          // Primero, nos aseguramos de que el clic fue en un botón de eliminar
+          if (e.target.classList.contains('delete-btn')) {
+              const leadId = e.target.dataset.id; // Obtenemos el ID del lead desde el botón
+
+              // Pedimos confirmación antes de borrar
+              if (confirm("¿Estás seguro de que querés eliminar este lead?")) {
+                  try {
+                      const docRef = doc(db, "leads", leadId); // Apuntamos al documento específico
+                      await deleteDoc(docRef); // Lo eliminamos
+                      console.log("Lead eliminado!");
+                      CargarLeads(); // Recargamos la lista para que desaparezca
+                  } catch (error) {
+                      console.error("Error al eliminar el lead: ", error);
+                      alert("Hubo un error al eliminar el lead.");
+                  }
+              }
+          }
+      });
+
+      // --- Función para Cargar Leads (MODIFICADA para añadir el botón) ---
       async function CargarLeads() {
-        const leadsContainer = document.getElementById('leads-container');
         const statusDiv = document.getElementById('status');
-        
         try {
             const querySnapshot = await getDocs(leadsCollection);
             leadsContainer.innerHTML = '';
-
             if (querySnapshot.empty) {
                 statusDiv.innerHTML = '<p>No se encontraron leads.</p>';
                 return;
             }
-
             querySnapshot.forEach((doc) => {
                 const lead = doc.data();
+                // ¡AQUÍ AÑADIMOS EL BOTÓN DE ELIMINAR A CADA TARJETA!
+                // Usamos 'data-id' para guardar el ID único del documento en el botón.
                 const leadCardHTML = `
                     <div class="lead-card">
                         <h2>${lead.businessName || 'Sin Nombre'}</h2>
                         <p><strong>Contacto:</strong> ${lead.dm.firstName || ''} ${lead.dm.lastName || ''}</p>
                         <p><strong>Teléfono:</strong> ${lead.dm.phone || 'N/A'}</p>
                         <p><strong>Progreso:</strong> ${lead.leadProgress || 'N/A'}</p>
+                        <button class="delete-btn" data-id="${doc.id}">Eliminar</button>
                     </div>
                 `;
                 leadsContainer.innerHTML += leadCardHTML;
             });
-
             statusDiv.style.display = 'none';
         } catch (error) {
             console.error("Error al cargar los leads: ", error);
@@ -130,9 +136,8 @@
         }
       }
 
-      // 4. Ejecutamos la función cuando la página carga
+      // Ejecutamos la función cuando la página carga
       CargarLeads();
-
     </script>
 </body>
 </html>
