@@ -5,18 +5,29 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Energy Broker Leads Manager</title>
     <style>
-        /* Agregamos un poco de estilo para que se vea mejor */
         body { font-family: sans-serif; margin: 2em; background-color: #f4f4f9; }
-        h1 { color: #333; }
-        #leads-container { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 1em; }
+        h1, h2 { color: #333; }
+        #leads-container { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 1em; margin-top: 2em;}
         .lead-card { background-color: white; border: 1px solid #ddd; border-radius: 8px; padding: 1em; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
         .lead-card h2 { margin-top: 0; color: #0056b3; }
         .lead-card p { margin: 0.5em 0; }
         .lead-card strong { color: #333; }
+        input[type="text"], input[type="tel"] { width: 95%; padding: 8px; margin-bottom: 10px; border-radius: 4px; border: 1px solid #ccc; }
+        button { background-color: #28a745; color: white; padding: 10px 15px; border: none; border-radius: 4px; cursor: pointer; }
+        button:hover { background-color: #218838; }
     </style>
 </head>
 <body>
     <h1>Mis Leads de Energía</h1>
+
+    <form id="add-lead-form" class="lead-card">
+        <h2>Agregar Nuevo Lead</h2>
+        <p><input type="text" id="businessName" placeholder="Nombre del Negocio" required></p>
+        <p><input type="text" id="dmFirstName" placeholder="Nombre del Contacto"></p>
+        <p><input type="text" id="dmLastName" placeholder="Apellido del Contacto"></p>
+        <p><input type="tel" id="dmPhone" placeholder="Teléfono"></p>
+        <button type="submit">Guardar Lead</button>
+    </form>
 
     <div id="status">
         <p>Cargando leads desde la base de datos...</p>
@@ -26,12 +37,12 @@
         </div>
 
     <script type="module">
-      // 1. Configuración de Firebase (Tu llave)
+      // 1. Configuración de Firebase
       import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-      // 2. Importamos las funciones de Firestore que necesitamos
-      import { getFirestore, collection, getDocs } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+      // 2. Importamos las funciones de Firestore que necesitamos (¡AÑADIMOS 'addDoc'!)
+      import { getFirestore, collection, getDocs, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
-      // Tu configuración de Firebase que ya pegaste antes
+      // Tu configuración de Firebase
       const firebaseConfig = {
         apiKey: "AIzaSyAmZZPvjlfFBJYGccwpwpzvzdydmd7skFo",
         authDomain: "energy-broker-leads-manager.firebaseapp.com",
@@ -42,33 +53,65 @@
         measurementId: "G-BN2684HFCC"
       };
 
-      // Inicializamos Firebase
+      // Inicializamos Firebase y Firestore
       const app = initializeApp(firebaseConfig);
-      // Inicializamos Firestore
       const db = getFirestore(app);
+      const leadsCollection = collection(db, "leads");
 
-      // 3. Función para buscar los datos y mostrarlos
+      // --- CÓDIGO NUEVO PARA GUARDAR EL FORMULARIO ---
+      const addLeadForm = document.getElementById('add-lead-form');
+
+      addLeadForm.addEventListener('submit', async (e) => {
+        e.preventDefault(); // Esto evita que la página se recargue al enviar
+
+        // 1. Obtenemos los valores de los campos del formulario
+        const businessName = addLeadForm.businessName.value;
+        const dmFirstName = addLeadForm.dmFirstName.value;
+        const dmLastName = addLeadForm.dmLastName.value;
+        const dmPhone = addLeadForm.dmPhone.value;
+
+        try {
+            // 2. Creamos un nuevo objeto 'lead' con la estructura correcta
+            await addDoc(leadsCollection, {
+                businessName: businessName,
+                dm: {
+                    firstName: dmFirstName,
+                    lastName: dmLastName,
+                    phone: dmPhone,
+                    email: "" // Dejamos el email vacío por ahora
+                },
+                leadProgress: "Nuevo", // Estado inicial
+                createdAt: serverTimestamp() // Fecha de creación automática
+            });
+
+            // 3. Limpiamos el formulario y recargamos la lista de leads
+            addLeadForm.reset();
+            CargarLeads(); // ¡Reutilizamos la función que ya teníamos!
+            console.log("¡Lead guardado con éxito!");
+
+        } catch (error) {
+            console.error("Error al guardar el lead: ", error);
+            alert("Hubo un error al guardar el lead. Intenta de nuevo.");
+        }
+      });
+      // --- FIN DEL CÓDIGO NUEVO ---
+
+      // 3. Función para buscar los datos y mostrarlos (la teníamos de antes)
       async function CargarLeads() {
         const leadsContainer = document.getElementById('leads-container');
         const statusDiv = document.getElementById('status');
         
         try {
-            // Apuntamos a nuestra colección "leads"
-            const querySnapshot = await getDocs(collection(db, "leads"));
-            
-            // Limpiamos el contenedor por si acaso
+            const querySnapshot = await getDocs(leadsCollection);
             leadsContainer.innerHTML = '';
 
             if (querySnapshot.empty) {
-                statusDiv.innerHTML = '<p>No se encontraron leads en la base de datos.</p>';
+                statusDiv.innerHTML = '<p>No se encontraron leads.</p>';
                 return;
             }
 
-            // Recorremos cada documento (lead) que encontramos
             querySnapshot.forEach((doc) => {
-                const lead = doc.data(); // Obtenemos los datos del lead
-                
-                // Creamos una "tarjeta" HTML para mostrar el lead
+                const lead = doc.data();
                 const leadCardHTML = `
                     <div class="lead-card">
                         <h2>${lead.businessName || 'Sin Nombre'}</h2>
@@ -77,16 +120,13 @@
                         <p><strong>Progreso:</strong> ${lead.leadProgress || 'N/A'}</p>
                     </div>
                 `;
-                // Añadimos la tarjeta al contenedor
                 leadsContainer.innerHTML += leadCardHTML;
             });
 
-            // Ocultamos el mensaje de "cargando"
             statusDiv.style.display = 'none';
-
         } catch (error) {
             console.error("Error al cargar los leads: ", error);
-            statusDiv.innerHTML = '<p>Hubo un error al conectar con la base de datos. Revisa la consola para más detalles.</p>';
+            statusDiv.innerHTML = '<p>Hubo un error al conectar con la base de datos.</p>';
         }
       }
 
