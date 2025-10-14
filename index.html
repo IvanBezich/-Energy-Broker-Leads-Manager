@@ -3,84 +3,52 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Energy Broker Leads Manager</title>
+    <title>Gestor de Leads de Energía</title>
     <style>
-        body { font-family: sans-serif; margin: 2em; background-color: #f4f4f9; }
-        .hidden { display: none; }
-        #view-switcher { margin-bottom: 1em; }
-        #view-switcher button { background-color: #6c757d; }
-        #view-switcher button.active { background-color: #007bff; }
-        
-        /* Estilos de Tarjetas */
-        #card-view-container { display: grid; grid-template-columns: repeat(auto-fill, minmax(350px, 1fr)); gap: 1.5em; margin-top: 2em;}
-        .lead-card { background-color: white; border: 1px solid #ddd; border-radius: 8px; padding: 1.5em; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 1.5em;}
-        
-        /* Estilos de Lista */
-        #list-view-container { width: 100%; overflow-x: auto; margin-top: 2em; }
-        .leads-table { width: 100%; border-collapse: collapse; background-color: white; }
-        .leads-table th, .leads-table td { padding: 12px 15px; border: 1px solid #ddd; text-align: left; }
-        .leads-table th { background-color: #e9ecef; cursor: pointer; }
-        .leads-table th:hover { background-color: #d1d9e0; }
-        .leads-table tbody tr:nth-of-type(even) { background-color: #f8f9fa; }
-
-        /* Estilos compartidos y de formato condicional */
-        input, textarea, select { width: 95%; padding: 8px; margin-bottom: 10px; border-radius: 4px; border: 1px solid #ccc; }
-        button { padding: 10px 15px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; color: white;}
-        button[type="submit"] { background-color: #28a745; }
-        .delete-btn { background-color: #dc3545; }
-        .edit-btn { background-color: #007bff; margin-right: 5px;}
-        .status-tag { padding: 4px 8px; border-radius: 12px; color: white; font-size: 12px; font-weight: bold; }
-        .progress-untouched { background-color: #007bff; }
-        .progress-engaged, .progress-qualified { background-color: #add8e6; color: #333; }
-        .progress-quoted { background-color: #90ee90; color: #333; }
-        .progress-lost { background-color: #dc3545; }
-        .progress-signed, .progress-energized { background-color: #28a745; }
-        .meter-no-meter, .meter-off { background-color: #dc3545; }
-        .meter-temp { background-color: #90ee90; color: #333; }
-        .meter-energized { background-color: #218838; }
-        .modal { display: none; position: fixed; z-index: 1; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.4); }
-        .modal-content { background-color: #fefefe; margin: 10% auto; padding: 20px; border: 1px solid #888; width: 80%; max-width: 600px; border-radius: 8px; }
-        .close-btn { color: #aaa; float: right; font-size: 28px; font-weight: bold; cursor: pointer; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; margin: 2em; background-color: #f4f4f9; color: #333; }
+        h1, h2 { color: #1d3557; }
+        #app-container { max-width: 1200px; margin: auto; }
+        #leads-container { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 1.5em; margin-top: 2em;}
+        .lead-card { background-color: white; border: 1px solid #ddd; border-radius: 8px; padding: 1em; box-shadow: 0 4px 8px rgba(0,0,0,0.1); transition: transform 0.2s; }
+        .lead-card:hover { transform: translateY(-5px); }
+        .lead-card h2 { margin-top: 0; color: #457b9d; }
+        .lead-card p { margin: 0.5em 0; line-height: 1.6; }
+        .lead-card strong { color: #1d3557; }
+        input[type="text"], input[type="tel"] { width: calc(100% - 16px); padding: 10px; margin-bottom: 10px; border-radius: 4px; border: 1px solid #ccc; font-size: 1em; }
+        button { background-color: #2a9d8f; color: white; padding: 12px 18px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; font-size: 1em; transition: background-color 0.2s; }
+        button:hover { background-color: #268c7f; }
+        .delete-btn { background-color: #e63946; margin-top: 10px; }
+        .delete-btn:hover { background-color: #d0313e; }
+        #status { text-align: center; font-size: 1.2em; color: #666; }
     </style>
 </head>
 <body>
-    <div id="lang-switcher">...</div>
-    <h1 data-key="appTitle">Gestor de Leads</h1>
+    <div id="app-container">
+        <h1>Gestor de Leads de Energía</h1>
 
-    <div id="view-switcher">
-        <button id="card-view-btn" class="active" data-key="cardView">Vista Tarjetas</button>
-        <button id="list-view-btn" data-key="listView">Vista Lista</button>
+        <form id="add-lead-form" class="lead-card">
+            <h2>Agregar Nuevo Lead</h2>
+            <p><input type="text" id="businessName" placeholder="Nombre del Negocio" required></p>
+            <p><input type="text" id="dmFirstName" placeholder="Nombre del Contacto"></p>
+            <p><input type="text" id="dmLastName" placeholder="Apellido del Contacto"></p>
+            <p><input type="tel" id="dmPhone" placeholder="Teléfono"></p>
+            <button type="submit">Guardar Lead</button>
+        </form>
+
+        <div id="status">
+            <p>Cargando leads desde la base de datos...</p>
+        </div>
+
+        <div id="leads-container">
+            </div>
     </div>
 
-    <form id="add-lead-form" class="lead-card">...</form>
-
-    <div id="status"><p data-key="loadingLeads">Cargando leads...</p></div>
-
-    <div id="card-view-container"></div>
-    <div id="list-view-container" class="hidden">
-        <table class="leads-table">
-            <thead>
-                <tr>
-                    <th data-sort-by="businessName" data-key="businessNameHeader">Nombre Negocio</th>
-                    <th data-sort-by="createdAt" data-key="dateHeader">Fecha de Entrada</th>
-                    <th data-sort-by="leadProgress" data-key="progressHeader">Progreso</th>
-                    <th data-key="contactHeader">Contacto</th>
-                    <th data-key="phoneHeader">Teléfono</th>
-                    <th data-key="actionsHeader">Acciones</th>
-                </tr>
-            </thead>
-            <tbody id="list-view-tbody"></tbody>
-        </table>
-    </div>
-
-    <div id="edit-modal" class="modal">...</div>
-
-   <script type="module">
+    <script type="module">
       // 1. IMPORTACIONES: Traemos las herramientas que necesitamos de Firebase
       import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-      import { getFirestore, collection, getDocs, addDoc, serverTimestamp, doc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+      import { getFirestore, collection, getDocs, addDoc, serverTimestamp, doc, deleteDoc, query, orderBy } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
-      // 2. CONFIGURACIÓN: Tu llave secreta para conectar a tu proyecto
+      // 2. CONFIGURACIÓN: Tu llave correcta y definitiva para conectar a tu proyecto
       const firebaseConfig = {
         apiKey: "AIzaSyAmZZPvjlfFBJYGccwpwpzvzdydmd7skFo",
         authDomain: "energy-broker-leads-manager.firebaseapp.com",
@@ -99,23 +67,31 @@
       // --- CÓDIGO PARA GUARDAR EL FORMULARIO ---
       const addLeadForm = document.getElementById('add-lead-form');
       addLeadForm.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const businessName = addLeadForm.businessName.value;
-        const dmFirstName = addLeadForm.dmFirstName.value;
-        const dmLastName = addLeadForm.dmLastName.value;
-        const dmPhone = addLeadForm.dmPhone.value;
+        e.preventDefault(); // Evita que la página se recargue
+        const submitButton = e.target.querySelector('button[type="submit"]');
+        submitButton.disabled = true; // Deshabilita el botón para evitar doble clic
+        submitButton.textContent = 'Guardando...';
+
         try {
             await addDoc(leadsCollection, {
-                businessName: businessName,
-                dm: { firstName: dmFirstName, lastName: dmLastName, phone: dmPhone, email: "" },
+                businessName: addLeadForm.businessName.value,
+                dm: {
+                    firstName: addLeadForm.dmFirstName.value,
+                    lastName: addLeadForm.dmLastName.value,
+                    phone: addLeadForm.dmPhone.value,
+                    email: ""
+                },
                 leadProgress: "Nuevo",
-                createdAt: serverTimestamp()
+                createdAt: serverTimestamp() // Fecha de creación automática
             });
             addLeadForm.reset();
-            CargarLeads();
+            await CargarLeads(); // Recargamos la lista
         } catch (error) {
             console.error("Error al guardar el lead: ", error);
             alert("Hubo un error al guardar el lead.");
+        } finally {
+            submitButton.disabled = false; // Vuelve a habilitar el botón
+            submitButton.textContent = 'Guardar Lead';
         }
       });
 
@@ -124,11 +100,10 @@
       leadsContainer.addEventListener('click', async (e) => {
           if (e.target.classList.contains('delete-btn')) {
               const leadId = e.target.dataset.id;
-              if (confirm("¿Estás seguro de que querés eliminar este lead?")) {
+              if (confirm("¿Estás seguro de que querés eliminar este lead? Esta acción no se puede deshacer.")) {
                   try {
-                      const docRef = doc(db, "leads", leadId);
-                      await deleteDoc(docRef);
-                      CargarLeads();
+                      await deleteDoc(doc(db, "leads", leadId));
+                      await CargarLeads(); // Recargamos la lista para que desaparezca
                   } catch (error) {
                       console.error("Error al eliminar el lead: ", error);
                       alert("Hubo un error al eliminar el lead.");
@@ -137,20 +112,24 @@
           }
       });
 
-      // --- Función para Cargar Leads ---
+      // --- FUNCIÓN PARA CARGAR Y MOSTRAR LOS LEADS ---
       async function CargarLeads() {
         const statusDiv = document.getElementById('status');
         try {
-            const querySnapshot = await getDocs(leadsCollection);
+            // Creamos una consulta para ordenar los leads por fecha de creación, los más nuevos primero
+            const q = query(leadsCollection, orderBy("createdAt", "desc"));
+            const querySnapshot = await getDocs(q);
+
             leadsContainer.innerHTML = '';
             if (querySnapshot.empty) {
-                statusDiv.innerHTML = '<p>No se encontraron leads.</p>';
+                statusDiv.innerHTML = '<p>No hay leads para mostrar. ¡Agregá el primero!</p>';
+                statusDiv.style.display = 'block';
                 return;
             }
             querySnapshot.forEach((doc) => {
                 const lead = doc.data();
                 const leadCardHTML = `
-                    <div class="lead-card">
+                    <div class="lead-card" id="${doc.id}">
                         <h2>${lead.businessName || 'Sin Nombre'}</h2>
                         <p><strong>Contacto:</strong> ${lead.dm.firstName || ''} ${lead.dm.lastName || ''}</p>
                         <p><strong>Teléfono:</strong> ${lead.dm.phone || 'N/A'}</p>
@@ -163,10 +142,13 @@
             statusDiv.style.display = 'none';
         } catch (error) {
             console.error("Error al cargar los leads: ", error);
-            statusDiv.innerHTML = '<p>Hubo un error al conectar con la base de datos.</p>';
+            statusDiv.innerHTML = '<p style="color: red;"><strong>Error:</strong> No se pudo conectar a la base de datos. Verificá la consola (F12) para más detalles.</p>';
+            statusDiv.style.display = 'block';
         }
       }
 
-      // --- Ejecución inicial ---
+      // --- Ejecución inicial al cargar la página ---
       CargarLeads();
     </script>
+</body>
+</html>
