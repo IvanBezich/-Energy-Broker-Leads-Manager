@@ -8,7 +8,166 @@
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; margin: 2em; background-color: #f4f4f9; color: #333; }
         h1, h2 { color: #1d3557; }
         #app-container { max-width: 1200px; margin: auto; }
+        #leads-container { display: grid; grid-template-columns: re<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestor de Leads de Energía</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; margin: 2em; background-color: #f4f4f9; color: #333; }
+        h1, h2 { color: #1d3557; }
+        #app-container { max-width: 1200px; margin: auto; }
         #leads-container { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 1.5em; margin-top: 2em;}
+        .lead-card { background-color: white; border: 1px solid #ddd; border-radius: 8px; padding: 1em; box-shadow: 0 4px 8px rgba(0,0,0,0.1); transition: transform 0.2s; }
+        .lead-card:hover { transform: translateY(-5px); }
+        .lead-card h2 { margin-top: 0; color: #457b9d; }
+        .lead-card p { margin: 0.5em 0; line-height: 1.6; }
+        .lead-card a { color: #0056b3; text-decoration: none; } /* Estilo para los links */
+        .lead-card a:hover { text-decoration: underline; }
+        .lead-card strong { color: #1d3557; }
+        input[type="text"], input[type="tel"] { width: calc(100% - 16px); padding: 10px; margin-bottom: 10px; border-radius: 4px; border: 1px solid #ccc; font-size: 1em; }
+        button { background-color: #2a9d8f; color: white; padding: 12px 18px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; font-size: 1em; transition: background-color 0.2s; }
+        button:hover { background-color: #268c7f; }
+        .delete-btn { background-color: #e63946; margin-top: 10px; }
+        .delete-btn:hover { background-color: #d0313e; }
+        #status { text-align: center; font-size: 1.2em; color: #666; }
+    </style>
+</head>
+<body>
+    <div id="app-container">
+        <h1>Gestor de Leads de Energía</h1>
+
+        <form id="add-lead-form" class="lead-card">
+            <h2>Agregar Nuevo Lead</h2>
+            <p><input type="text" id="businessName" placeholder="Nombre del Negocio" required></p>
+            <p><input type="text" id="dmFirstName" placeholder="Nombre del Contacto"></p>
+            <p><input type="text" id="dmLastName" placeholder="Apellido del Contacto"></p>
+            <p><input type="tel" id="dmPhone" placeholder="Teléfono"></p>
+            <button type="submit">Guardar Lead</button>
+        </form>
+
+        <div id="status">
+            <p>Cargando leads desde la base de datos...</p>
+        </div>
+
+        <div id="leads-container">
+            </div>
+    </div>
+
+    <script type="module">
+      // 1. IMPORTACIONES: Traemos las herramientas que necesitamos de Firebase
+      import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+      import { getFirestore, collection, getDocs, addDoc, serverTimestamp, doc, deleteDoc, query, orderBy } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+      // 2. CONFIGURACIÓN: Tu llave correcta y definitiva para conectar a tu proyecto
+      const firebaseConfig = {
+        apiKey: "AIzaSyAmZZPvjlfFBJYGccwpwpzvzdydmd7skFo",
+        authDomain: "energy-broker-leads-manager.firebaseapp.com",
+        projectId: "energy-broker-leads-manager",
+        storageBucket: "energy-broker-leads-manager.appspot.com",
+        messagingSenderId: "1016824630391",
+        appId: "1:1016824630391:web:4705d1dfde6bfee9bfca72",
+        measurementId: "G-BN2684HFCC"
+      };
+
+      // 3. INICIALIZACIÓN: Conectamos a Firebase y a la base de datos
+      const app = initializeApp(firebaseConfig);
+      const db = getFirestore(app);
+      const leadsCollection = collection(db, "leads");
+
+      // --- CÓDIGO PARA GUARDAR EL FORMULARIO ---
+      const addLeadForm = document.getElementById('add-lead-form');
+      addLeadForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const submitButton = e.target.querySelector('button[type="submit"]');
+        submitButton.disabled = true;
+        submitButton.textContent = 'Guardando...';
+        try {
+            await addDoc(leadsCollection, {
+                businessName: addLeadForm.businessName.value,
+                dm: { firstName: addLeadForm.dmFirstName.value, lastName: addLeadForm.dmLastName.value, phone: addLeadForm.dmPhone.value, email: "" },
+                address: { fullAddress: "" }, // Incluimos la dirección vacía por defecto
+                leadProgress: "Nuevo",
+                createdAt: serverTimestamp()
+            });
+            addLeadForm.reset();
+            await CargarLeads();
+        } catch (error) {
+            console.error("Error al guardar el lead: ", error);
+            alert("Hubo un error al guardar el lead.");
+        } finally {
+            submitButton.disabled = false;
+            submitButton.textContent = 'Guardar Lead';
+        }
+      });
+
+      // --- CÓDIGO PARA MANEJAR LOS CLICS DE ELIMINAR ---
+      const leadsContainer = document.getElementById('leads-container');
+      leadsContainer.addEventListener('click', async (e) => {
+          if (e.target.classList.contains('delete-btn')) {
+              const leadId = e.target.dataset.id;
+              if (confirm("¿Estás seguro de que querés eliminar este lead? Esta acción no se puede deshacer.")) {
+                  try {
+                      await deleteDoc(doc(db, "leads", leadId));
+                      await CargarLeads();
+                  } catch (error) {
+                      console.error("Error al eliminar el lead: ", error);
+                      alert("Hubo un error al eliminar el lead.");
+                  }
+              }
+          }
+      });
+
+      // --- FUNCIÓN PARA CARGAR Y MOSTRAR LOS LEADS ---
+      async function CargarLeads() {
+        const statusDiv = document.getElementById('status');
+        try {
+            const q = query(leadsCollection, orderBy("createdAt", "desc"));
+            const querySnapshot = await getDocs(q);
+            leadsContainer.innerHTML = '';
+            if (querySnapshot.empty) {
+                statusDiv.innerHTML = '<p>No hay leads para mostrar. ¡Agregá el primero!</p>';
+                statusDiv.style.display = 'block';
+                return;
+            }
+            querySnapshot.forEach((doc) => {
+                const lead = doc.data();
+
+                // --- NUEVO CÓDIGO PARA EL LINK DE GOOGLE MAPS ---
+                let addressHTML = ''; // Creamos una variable para el HTML de la dirección
+                if (lead.address && lead.address.fullAddress) {
+                    const encodedAddress = encodeURIComponent(lead.address.fullAddress);
+                    const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodedAddress}`;
+                    // Creamos el párrafo completo con el link
+                    addressHTML = `<p><strong>Dirección:</strong> <a href="${mapsUrl}" target="_blank" title="Abrir en Google Maps">${lead.address.fullAddress}</a></p>`;
+                }
+                // --- FIN DEL NUEVO CÓDIGO ---
+
+                const leadCardHTML = `
+                    <div class="lead-card" id="${doc.id}">
+                        <h2>${lead.businessName || 'Sin Nombre'}</h2>
+                        <p><strong>Contacto:</strong> ${lead.dm.firstName || ''} ${lead.dm.lastName || ''}</p>
+                        <p><strong>Teléfono:</strong> ${lead.dm.phone || 'N/A'}</p>
+                        ${addressHTML} <p><strong>Progreso:</strong> ${lead.leadProgress || 'N/A'}</p>
+                        <button class="delete-btn" data-id="${doc.id}">Eliminar</button>
+                    </div>
+                `;
+                leadsContainer.innerHTML += leadCardHTML;
+            });
+            statusDiv.style.display = 'none';
+        } catch (error) {
+            console.error("Error al cargar los leads: ", error);
+            statusDiv.innerHTML = '<p style="color: red;"><strong>Error:</strong> No se pudo conectar a la base de datos. Verificá la consola (F12) para más detalles.</p>';
+            statusDiv.style.display = 'block';
+        }
+      }
+
+      // --- Ejecución inicial al cargar la página ---
+      CargarLeads();
+    </script>
+</body>
+</html>peat(auto-fill, minmax(320px, 1fr)); gap: 1.5em; margin-top: 2em;}
         .lead-card { background-color: white; border: 1px solid #ddd; border-radius: 8px; padding: 1em; box-shadow: 0 4px 8px rgba(0,0,0,0.1); transition: transform 0.2s; }
         .lead-card:hover { transform: translateY(-5px); }
         .lead-card h2 { margin-top: 0; color: #457b9d; }
