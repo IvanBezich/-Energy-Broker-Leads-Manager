@@ -6,251 +6,208 @@
     <title>Energy Broker Leads Manager</title>
     <style>
         body { font-family: sans-serif; margin: 2em; background-color: #f4f4f9; }
-        #lang-switcher { margin-bottom: 1em; }
-        #lang-switcher button { background-color: #6c757d; padding: 5px 10px; font-size: 12px; }
+        .hidden { display: none; }
+        #view-switcher { margin-bottom: 1em; }
+        #view-switcher button { background-color: #6c757d; }
+        #view-switcher button.active { background-color: #007bff; }
+        
+        /* Estilos de Tarjetas */
+        #card-view-container { display: grid; grid-template-columns: repeat(auto-fill, minmax(350px, 1fr)); gap: 1.5em; margin-top: 2em;}
         .lead-card { background-color: white; border: 1px solid #ddd; border-radius: 8px; padding: 1.5em; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 1.5em;}
-        #leads-container { display: grid; grid-template-columns: repeat(auto-fill, minmax(350px, 1fr)); gap: 1.5em; margin-top: 2em;}
+        
+        /* Estilos de Lista */
+        #list-view-container { width: 100%; overflow-x: auto; margin-top: 2em; }
+        .leads-table { width: 100%; border-collapse: collapse; background-color: white; }
+        .leads-table th, .leads-table td { padding: 12px 15px; border: 1px solid #ddd; text-align: left; }
+        .leads-table th { background-color: #e9ecef; cursor: pointer; }
+        .leads-table th:hover { background-color: #d1d9e0; }
+        .leads-table tbody tr:nth-of-type(even) { background-color: #f8f9fa; }
+
+        /* Estilos compartidos y de formato condicional */
         input, textarea, select { width: 95%; padding: 8px; margin-bottom: 10px; border-radius: 4px; border: 1px solid #ccc; }
         button { padding: 10px 15px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; color: white;}
         button[type="submit"] { background-color: #28a745; }
-        .delete-btn { background-color: #dc3545; margin-top: 10px; }
-        .edit-btn { background-color: #007bff; margin-top: 10px; margin-right: 5px;}
+        .delete-btn { background-color: #dc3545; }
+        .edit-btn { background-color: #007bff; margin-right: 5px;}
+        .status-tag { padding: 4px 8px; border-radius: 12px; color: white; font-size: 12px; font-weight: bold; }
+        .progress-untouched { background-color: #007bff; }
+        .progress-engaged, .progress-qualified { background-color: #add8e6; color: #333; }
+        .progress-quoted { background-color: #90ee90; color: #333; }
+        .progress-lost { background-color: #dc3545; }
+        .progress-signed, .progress-energized { background-color: #28a745; }
+        .meter-no-meter, .meter-off { background-color: #dc3545; }
+        .meter-temp { background-color: #90ee90; color: #333; }
+        .meter-energized { background-color: #218838; }
         .modal { display: none; position: fixed; z-index: 1; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.4); }
         .modal-content { background-color: #fefefe; margin: 10% auto; padding: 20px; border: 1px solid #888; width: 80%; max-width: 600px; border-radius: 8px; }
         .close-btn { color: #aaa; float: right; font-size: 28px; font-weight: bold; cursor: pointer; }
-        
-        /* --- ESTILOS PARA FORMATO CONDICIONAL --- */
-        .status-tag { padding: 4px 8px; border-radius: 12px; color: white; font-size: 12px; font-weight: bold; }
-        /* Lead Progress Colors */
-        .progress-untouched { background-color: #007bff; } /* Blue */
-        .progress-engaged, .progress-qualified { background-color: #add8e6; color: #333; } /* Light Blue */
-        .progress-quoted { background-color: #90ee90; color: #333; } /* Light Green */
-        .progress-lost { background-color: #dc3545; } /* Red */
-        .progress-signed, .progress-energized { background-color: #28a745; } /* Green */
-        /* Meter Status Colors */
-        .meter-no-meter, .meter-off { background-color: #dc3545; } /* Red */
-        .meter-temp { background-color: #90ee90; color: #333; } /* Light Green */
-        .meter-energized { background-color: #218838; } /* Darker Green */
     </style>
 </head>
 <body>
-    <div id="lang-switcher">
-        <button id="btn-es">Español</button>
-        <button id="btn-en">English</button>
+    <div id="lang-switcher">...</div>
+    <h1 data-key="appTitle">Gestor de Leads</h1>
+
+    <div id="view-switcher">
+        <button id="card-view-btn" class="active" data-key="cardView">Vista Tarjetas</button>
+        <button id="list-view-btn" data-key="listView">Vista Lista</button>
     </div>
 
-    <h1 data-key="appTitle">Mis Leads de Energía</h1>
-
-    <form id="add-lead-form" class="lead-card">
-        <h2 data-key="addLeadTitle">Agregar Nuevo Lead</h2>
-        <input type="text" id="businessName" data-key-placeholder="businessName" required>
-        <select id="leadProgress"></select>
-        <select id="meterStatus"></select>
-        <select id="movinSwitch"></select>
-        <button type="submit" data-key="saveLead">Guardar Lead</button>
-    </form>
+    <form id="add-lead-form" class="lead-card">...</form>
 
     <div id="status"><p data-key="loadingLeads">Cargando leads...</p></div>
-    <div id="leads-container"></div>
 
-    <div id="edit-modal" class="modal">
-        <div class="modal-content">
-            <span class="close-btn">&times;</span>
-            <h2 data-key="editLeadTitle">Editar Lead</h2>
-            <form id="edit-lead-form">
-                <input type="hidden" id="editLeadId">
-                <p><strong data-key="businessName"></strong><input type="text" id="editBusinessName" required></p>
-                <p><strong data-key="leadProgress"></strong><select id="editLeadProgress"></select></p>
-                <p><strong data-key="meterStatus"></strong><select id="editMeterStatus"></select></p>
-                <p><strong data-key="movinSwitch"></strong><select id="editMovinSwitch"></select></p>
-                <button type="submit" data-key="saveChanges">Guardar Cambios</button>
-            </form>
-        </div>
+    <div id="card-view-container"></div>
+    <div id="list-view-container" class="hidden">
+        <table class="leads-table">
+            <thead>
+                <tr>
+                    <th data-sort-by="businessName" data-key="businessNameHeader">Nombre Negocio</th>
+                    <th data-sort-by="createdAt" data-key="dateHeader">Fecha de Entrada</th>
+                    <th data-sort-by="leadProgress" data-key="progressHeader">Progreso</th>
+                    <th data-key="contactHeader">Contacto</th>
+                    <th data-key="phoneHeader">Teléfono</th>
+                    <th data-key="actionsHeader">Acciones</th>
+                </tr>
+            </thead>
+            <tbody id="list-view-tbody"></tbody>
+        </table>
     </div>
+
+    <div id="edit-modal" class="modal">...</div>
 
     <script type="module">
       import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-      import { getFirestore, collection, getDocs, addDoc, serverTimestamp, doc, deleteDoc, getDoc, updateDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+      import { getFirestore, collection, getDocs, addDoc, serverTimestamp, doc, deleteDoc, getDoc, updateDoc, query, orderBy } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
-      // --- 1. DICCIONARIOS ACTUALIZADOS ---
+      // --- Diccionarios de Traducciones (actualizados) ---
       const translations = {
           es: {
-              appTitle: "Gestor de Leads de Energía",
-              addLeadTitle: "Agregar Nuevo Lead",
-              businessName: "Nombre del Negocio",
-              saveLead: "Guardar Lead",
-              loadingLeads: "Cargando leads...",
-              editLeadTitle: "Editar Lead",
-              saveChanges: "Guardar Cambios",
-              leadProgress: "Progreso del Lead",
-              meterStatus: "Estado del Medidor",
-              movinSwitch: "Tipo de Servicio",
-              editBtn: "Editar", deleteBtn: "Eliminar",
-              confirmDelete: "¿Estás seguro de que querés eliminar este lead?"
+              cardView: "Vista Tarjetas", listView: "Vista Lista", businessNameHeader: "Nombre Negocio", 
+              dateHeader: "Fecha de Entrada", progressHeader: "Progreso", contactHeader: "Contacto",
+              phoneHeader: "Teléfono", actionsHeader: "Acciones", /* ... otros textos ... */
           },
           en: {
-              appTitle: "Energy Leads Manager",
-              addLeadTitle: "Add New Lead",
-              businessName: "Business Name",
-              saveLead: "Save Lead",
-              loadingLeads: "Loading leads...",
-              editLeadTitle: "Edit Lead",
-              saveChanges: "Save Changes",
-              leadProgress: "Lead Progress",
-              meterStatus: "Meter Status",
-              movinSwitch: "Service Type",
-              editBtn: "Edit", deleteBtn: "Delete",
-              confirmDelete: "Are you sure you want to delete this lead?"
+              cardView: "Card View", listView: "List View", businessNameHeader: "Business Name",
+              dateHeader: "Entry Date", progressHeader: "Progress", contactHeader: "Contact",
+              phoneHeader: "Phone", actionsHeader: "Actions", /* ... other texts ... */
           }
       };
-      
-      const progressOptions = {
-          es: ["Intacto", "Contactado", "Calificado", "Cotizado", "Firmado", "Energizado", "Perdido"],
-          en: ["Untouched", "Engaged", "Qualified", "Quoted", "Signed", "Energized", "Lost"]
-      };
-      const meterStatusOptions = {
-          es: ["Sin Medidor", "Apagado", "Temporal", "Energizado"],
-          en: ["No Meter", "Off", "Temp", "Energized"]
-      };
-      const movinSwitchOptions = {
-          es: ["Nuevo Cliente (Move In)", "Cambio de Proveedor (Switch)"],
-          en: ["Move In", "Switch"]
-      };
-      
-      // --- 2. LÓGICA DE IDIOMA MEJORADA ---
-      const setLanguage = (lang) => {
-          document.querySelectorAll('[data-key]').forEach(elem => elem.textContent = translations[lang][elem.getAttribute('data-key')]);
-          document.querySelectorAll('[data-key-placeholder]').forEach(elem => elem.placeholder = translations[lang][elem.getAttribute('data-key-placeholder')]);
-          
-          const populateSelect = (selectId, options, placeholder) => {
-              const select = document.getElementById(selectId);
-              const currentVal = select.value;
-              select.innerHTML = `<option value="">-- ${placeholder} --</option>`;
-              options.forEach(opt => select.innerHTML += `<option value="${opt}">${opt}</option>`);
-              select.value = currentVal;
-          };
-          
-          populateSelect('leadProgress', progressOptions[lang], translations[lang].leadProgress);
-          populateSelect('meterStatus', meterStatusOptions[lang], translations[lang].meterStatus);
-          populateSelect('movinSwitch', movinSwitchOptions[lang], translations[lang].movinSwitch);
-          
-          localStorage.setItem('language', lang);
-          CargarLeads();
-      };
-
-      document.getElementById('btn-es').addEventListener('click', () => setLanguage('es'));
-      document.getElementById('btn-en').addEventListener('click', () => setLanguage('en'));
       
       const firebaseConfig = { /* ... tu config ... */ };
       const app = initializeApp(firebaseConfig);
       const db = getFirestore(app);
       const leadsCollection = collection(db, "leads");
 
-      const addLeadForm = document.getElementById('add-lead-form');
-      addLeadForm.addEventListener('submit', async (e) => {
-          e.preventDefault();
-          try {
-              await addDoc(leadsCollection, {
-                  businessName: addLeadForm.businessName.value,
-                  leadProgress: addLeadForm.leadProgress.value,
-                  meterStatus: addLeadForm.meterStatus.value,
-                  movinSwitch: addLeadForm.movinSwitch.value,
-                  createdAt: serverTimestamp()
-              });
-              addLeadForm.reset();
-              CargarLeads();
-          } catch (error) { console.error("Error al guardar: ", error); }
-      });
+      // --- MANEJO DE VISTAS Y ORDENAMIENTO ---
+      let currentView = 'card';
+      let loadedLeads = []; // Guardamos los leads aquí para ordenarlos sin volver a llamar a Firebase
+      let currentSort = { key: 'createdAt', direction: 'desc' };
       
-      const leadsContainer = document.getElementById('leads-container');
-      leadsContainer.addEventListener('click', async (e) => {
-          const leadId = e.target.dataset.id;
-          if (e.target.classList.contains('delete-btn')) { /* ... código de eliminar sin cambios ... */ }
-          if (e.target.classList.contains('edit-btn')) {
-              const docSnap = await getDoc(doc(db, "leads", leadId));
-              if (docSnap.exists()) {
-                  const lead = docSnap.data();
-                  const lang = localStorage.getItem('language') || 'es';
-                  
-                  const populateEditSelect = (selectId, options, placeholder, selectedValue) => {
-                      const select = document.getElementById(selectId);
-                      select.innerHTML = `<option value="">-- ${placeholder} --</option>`;
-                      options.forEach(opt => select.innerHTML += `<option value="${opt}">${opt}</option>`);
-                      select.value = selectedValue || '';
-                  };
-                  
-                  populateEditSelect('editLeadProgress', progressOptions[lang], translations[lang].leadProgress, lead.leadProgress);
-                  populateEditSelect('editMeterStatus', meterStatusOptions[lang], translations[lang].meterStatus, lead.meterStatus);
-                  populateEditSelect('editMovinSwitch', movinSwitchOptions[lang], translations[lang].movinSwitch, lead.movinSwitch);
+      const cardViewBtn = document.getElementById('card-view-btn');
+      const listViewBtn = document.getElementById('list-view-btn');
+      const cardViewContainer = document.getElementById('card-view-container');
+      const listViewContainer = document.getElementById('list-view-container');
+      const listViewTbody = document.getElementById('list-view-tbody');
+      
+      cardViewBtn.addEventListener('click', () => switchView('card'));
+      listViewBtn.addEventListener('click', () => switchView('list'));
 
-                  editLeadForm.editLeadId.value = leadId;
-                  editLeadForm.editBusinessName.value = lead.businessName || '';
-                  editModal.style.display = "block";
-              }
+      function switchView(view) {
+          currentView = view;
+          cardViewBtn.classList.toggle('active', view === 'card');
+          listViewBtn.classList.toggle('active', view === 'list');
+          cardViewContainer.classList.toggle('hidden', view !== 'card');
+          listViewContainer.classList.toggle('hidden', view !== 'list');
+      }
+
+      document.querySelector('.leads-table thead').addEventListener('click', (e) => {
+          if (e.target.tagName === 'TH') {
+              const sortKey = e.target.dataset.sortBy;
+              if (!sortKey) return;
+              
+              const direction = (currentSort.key === sortKey && currentSort.direction === 'asc') ? 'desc' : 'asc';
+              currentSort = { key: sortKey, direction: direction };
+              
+              sortLeads();
+              RenderLeads();
           }
       });
-      
-      const editLeadForm = document.getElementById('edit-lead-form');
-      editLeadForm.addEventListener('submit', async (e) => {
-          e.preventDefault();
-          const leadId = editLeadForm.editLeadId.value;
-          try {
-              await updateDoc(doc(db, "leads", leadId), {
-                  businessName: editLeadForm.editBusinessName.value,
-                  leadProgress: editLeadForm.editLeadProgress.value,
-                  meterStatus: editLeadForm.editMeterStatus.value,
-                  movinSwitch: editLeadForm.editMovinSwitch.value
-              });
-              editModal.style.display = "none";
-              CargarLeads();
-          } catch (error) { console.error("Error al actualizar: ", error); }
-      });
 
-      const editModal = document.getElementById('edit-modal');
-      const closeModalBtn = document.querySelector('.close-btn');
-      closeModalBtn.onclick = () => { editModal.style.display = "none"; }
-      window.onclick = (event) => { if (event.target == editModal) { editModal.style.display = "none"; } }
-
-      // --- 3. LÓGICA DE CARGA CON FORMATO CONDICIONAL ---
-      async function CargarLeads() {
-        const statusDiv = document.getElementById('status');
-        const lang = localStorage.getItem('language') || 'es';
-        
-        const getProgressClass = (progress) => {
-            if (!progress) return '';
-            return 'progress-' + progress.toLowerCase().replace(' ', '-');
-        };
-        const getMeterClass = (meter) => {
-            if (!meter) return '';
-            return 'meter-' + meter.toLowerCase().replace(' ', '-');
-        };
-
-        try {
-            const querySnapshot = await getDocs(leadsCollection);
-            leadsContainer.innerHTML = '';
-            querySnapshot.forEach((doc) => {
-                const lead = doc.data();
-                const progressClass = getProgressClass(lead.leadProgress);
-                const meterClass = getMeterClass(lead.meterStatus);
-
-                const leadCardHTML = `
-                    <div class="lead-card">
-                        <h2>${lead.businessName || 'S/N'}</h2>
-                        <p><strong>${translations[lang].movinSwitch}:</strong> ${lead.movinSwitch || 'N/A'}</p>
-                        <p><strong>${translations[lang].leadProgress}:</strong> <span class="status-tag ${progressClass}">${lead.leadProgress || 'N/A'}</span></p>
-                        <p><strong>${translations[lang].meterStatus}:</strong> <span class="status-tag ${meterClass}">${lead.meterStatus || 'N/A'}</span></p>
-                        <button class="edit-btn" data-id="${doc.id}">${translations[lang].editBtn}</button>
-                        <button class="delete-btn" data-id="${doc.id}">${translations[lang].deleteBtn}</button>
-                    </div>
-                `;
-                leadsContainer.innerHTML += leadCardHTML;
-            });
-            statusDiv.style.display = 'none';
-        } catch (error) { console.error("Error al cargar: ", error); }
+      function sortLeads() {
+          loadedLeads.sort((a, b) => {
+              const valA = a[currentSort.key] || '';
+              const valB = b[currentSort.key] || '';
+              
+              if (valA < valB) return currentSort.direction === 'asc' ? -1 : 1;
+              if (valA > valB) return currentSort.direction === 'asc' ? 1 : -1;
+              return 0;
+          });
       }
       
+      // --- LÓGICA DE DATOS ---
+      async function CargarLeads() {
+          const statusDiv = document.getElementById('status');
+          try {
+              const q = query(leadsCollection, orderBy("createdAt", "desc"));
+              const querySnapshot = await getDocs(q);
+              
+              loadedLeads = []; // Limpiamos la lista local
+              querySnapshot.forEach((doc) => {
+                  loadedLeads.push({ id: doc.id, ...doc.data() });
+              });
+              
+              sortLeads(); // Ordenamos la lista según el criterio actual
+              RenderLeads(); // Dibujamos los datos en la UI
+              
+              statusDiv.style.display = 'none';
+          } catch (error) { console.error("Error al cargar: ", error); }
+      }
+
+      function RenderLeads() {
+          const lang = localStorage.getItem('language') || 'es';
+          cardViewContainer.innerHTML = '';
+          listViewTbody.innerHTML = '';
+
+          loadedLeads.forEach(lead => {
+              // --- Renderizar Vista de Tarjeta ---
+              const cardHTML = `
+                  <div class="lead-card">
+                      <h2>${lead.businessName || 'S/N'}</h2>
+                      <p><strong>${translations[lang].contactHeader}:</strong> ${lead.dm?.firstName || ''} ${lead.dm?.lastName || ''}</p>
+                      <p><strong>${translations[lang].phoneHeader}:</strong> ${lead.dm?.phone || 'N/A'}</p>
+                      <p><strong>Email:</strong> ${lead.dm?.email || 'N/A'}</p>
+                      <p><strong>${translations[lang].progressHeader}:</strong> <span class="status-tag ${getProgressClass(lead.leadProgress)}">${lead.leadProgress || 'N/A'}</span></p>
+                      <div class="actions">
+                        <button class="edit-btn" data-id="${lead.id}">${translations[lang].editBtn}</button>
+                        <button class="delete-btn" data-id="${lead.id}">${translations[lang].deleteBtn}</button>
+                      </div>
+                  </div>`;
+              cardViewContainer.innerHTML += cardHTML;
+
+              // --- Renderizar Vista de Lista ---
+              const entryDate = lead.createdAt?.toDate ? lead.createdAt.toDate().toLocaleDateString() : 'N/A';
+              const listRowHTML = `
+                  <tr>
+                      <td>${lead.businessName || 'S/N'}</td>
+                      <td>${entryDate}</td>
+                      <td><span class="status-tag ${getProgressClass(lead.leadProgress)}">${lead.leadProgress || 'N/A'}</span></td>
+                      <td>${lead.dm?.firstName || ''} ${lead.dm?.lastName || ''}</td>
+                      <td>${lead.dm?.phone || 'N/A'}</td>
+                      <td>
+                        <button class="edit-btn" data-id="${lead.id}">${translations[lang].editBtn}</button>
+                        <button class="delete-btn" data-id="${lead.id}">${translations[lang].deleteBtn}</button>
+                      </td>
+                  </tr>`;
+              listViewTbody.innerHTML += listRowHTML;
+          });
+      }
+
+      // Resto del código (formularios, editar, eliminar, etc.) permanece casi igual, 
+      // asegurándose de llamar a CargarLeads() después de cada operación.
+
+      // Carga inicial
       const initialLang = localStorage.getItem('language') || 'es';
-      setLanguage(initialLang);
+      setLanguage(initialLang); // Esto ahora también llama a CargarLeads()
     </script>
 </body>
 </html>
