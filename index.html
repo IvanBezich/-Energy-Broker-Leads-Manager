@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale-1.0">
     <title>Energy Broker Leads Manager</title>
     <style>
         body { font-family: sans-serif; margin: 2em; background-color: #f4f4f9; }
@@ -10,12 +10,15 @@
         #leads-container { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 1em; margin-top: 2em;}
         .lead-card { background-color: white; border: 1px solid #ddd; border-radius: 8px; padding: 1em; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
         .lead-card h2 { margin-top: 0; color: #0056b3; }
-        .lead-card p { margin: 0.5em 0; }
-        .lead-card strong { color: #333; }
         input[type="text"], input[type="tel"] { width: 95%; padding: 8px; margin-bottom: 10px; border-radius: 4px; border: 1px solid #ccc; }
         button { background-color: #28a745; color: white; padding: 10px 15px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; }
         button:hover { opacity: 0.9; }
-        .delete-btn { background-color: #dc3545; margin-top: 10px; } /* Estilo para el botón de eliminar */
+        .delete-btn { background-color: #dc3545; margin-top: 10px; }
+        .edit-btn { background-color: #007bff; margin-top: 10px; margin-right: 5px;}
+        /* Estilos para el Modal de Edición */
+        .modal { display: none; position: fixed; z-index: 1; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.4); }
+        .modal-content { background-color: #fefefe; margin: 15% auto; padding: 20px; border: 1px solid #888; width: 80%; max-width: 500px; border-radius: 8px; }
+        .close-btn { color: #aaa; float: right; font-size: 28px; font-weight: bold; cursor: pointer; }
     </style>
 </head>
 <body>
@@ -30,20 +33,28 @@
         <button type="submit">Guardar Lead</button>
     </form>
 
-    <div id="status">
-        <p>Cargando leads desde la base de datos...</p>
+    <div id="status"><p>Cargando leads...</p></div>
+    <div id="leads-container"></div>
+
+    <div id="edit-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-btn">&times;</span>
+            <h2>Editar Lead</h2>
+            <form id="edit-lead-form">
+                <input type="hidden" id="editLeadId">
+                <p><input type="text" id="editBusinessName" placeholder="Nombre del Negocio" required></p>
+                <p><input type="text" id="editDmFirstName" placeholder="Nombre del Contacto"></p>
+                <p><input type="text" id="editDmLastName" placeholder="Apellido del Contacto"></p>
+                <p><input type="tel" id="editDmPhone" placeholder="Teléfono"></p>
+                <button type="submit">Guardar Cambios</button>
+            </form>
+        </div>
     </div>
 
-    <div id="leads-container">
-        </div>
-
     <script type="module">
-      // 1. Configuración de Firebase
       import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-      // 2. Importamos las funciones de Firestore (¡AÑADIMOS 'doc' y 'deleteDoc'!)
-      import { getFirestore, collection, getDocs, addDoc, serverTimestamp, doc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+      import { getFirestore, collection, getDocs, addDoc, serverTimestamp, doc, deleteDoc, getDoc, updateDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
-      // Tu configuración de Firebase
       const firebaseConfig = {
         apiKey: "AIzaSyAmZZPvjlfFBJYGccwpwpzvzdydmd7skFo",
         authDomain: "energy-broker-leads-manager.firebaseapp.com",
@@ -54,89 +65,103 @@
         measurementId: "G-BN2684HFCC"
       };
 
-      // Inicializamos Firebase y Firestore
       const app = initializeApp(firebaseConfig);
       const db = getFirestore(app);
       const leadsCollection = collection(db, "leads");
 
-      // --- CÓDIGO PARA GUARDAR EL FORMULARIO (sin cambios) ---
       const addLeadForm = document.getElementById('add-lead-form');
+      const leadsContainer = document.getElementById('leads-container');
+      const editModal = document.getElementById('edit-modal');
+      const editLeadForm = document.getElementById('edit-lead-form');
+      const closeModalBtn = document.querySelector('.close-btn');
+
+      // --- GUARDAR NUEVO LEAD ---
       addLeadForm.addEventListener('submit', async (e) => {
         e.preventDefault();
-        const businessName = addLeadForm.businessName.value;
-        const dmFirstName = addLeadForm.dmFirstName.value;
-        const dmLastName = addLeadForm.dmLastName.value;
-        const dmPhone = addLeadForm.dmPhone.value;
         try {
             await addDoc(leadsCollection, {
-                businessName: businessName,
-                dm: { firstName: dmFirstName, lastName: dmLastName, phone: dmPhone, email: "" },
-                leadProgress: "Nuevo",
-                createdAt: serverTimestamp()
+                businessName: addLeadForm.businessName.value,
+                dm: { firstName: addLeadForm.dmFirstName.value, lastName: addLeadForm.dmLastName.value, phone: addLeadForm.dmPhone.value, email: "" },
+                leadProgress: "Nuevo", createdAt: serverTimestamp()
             });
             addLeadForm.reset();
             CargarLeads();
-        } catch (error) {
-            console.error("Error al guardar el lead: ", error);
-            alert("Hubo un error al guardar el lead.");
-        }
+        } catch (error) { console.error("Error al guardar: ", error); alert("Error al guardar."); }
       });
 
-      // --- CÓDIGO NUEVO PARA MANEJAR LOS CLICS DE ELIMINAR ---
-      const leadsContainer = document.getElementById('leads-container');
+      // --- MANEJAR CLICS EN LA LISTA (EDITAR Y ELIMINAR) ---
       leadsContainer.addEventListener('click', async (e) => {
-          // Primero, nos aseguramos de que el clic fue en un botón de eliminar
+          const leadId = e.target.dataset.id;
           if (e.target.classList.contains('delete-btn')) {
-              const leadId = e.target.dataset.id; // Obtenemos el ID del lead desde el botón
-
-              // Pedimos confirmación antes de borrar
               if (confirm("¿Estás seguro de que querés eliminar este lead?")) {
                   try {
-                      const docRef = doc(db, "leads", leadId); // Apuntamos al documento específico
-                      await deleteDoc(docRef); // Lo eliminamos
-                      console.log("Lead eliminado!");
-                      CargarLeads(); // Recargamos la lista para que desaparezca
-                  } catch (error) {
-                      console.error("Error al eliminar el lead: ", error);
-                      alert("Hubo un error al eliminar el lead.");
-                  }
+                      await deleteDoc(doc(db, "leads", leadId));
+                      CargarLeads();
+                  } catch (error) { console.error("Error al eliminar: ", error); alert("Error al eliminar."); }
+              }
+          }
+          if (e.target.classList.contains('edit-btn')) {
+              const docRef = doc(db, "leads", leadId);
+              const docSnap = await getDoc(docRef);
+              if (docSnap.exists()) {
+                  const lead = docSnap.data();
+                  editLeadForm.editLeadId.value = leadId;
+                  editLeadForm.editBusinessName.value = lead.businessName;
+                  editLeadForm.editDmFirstName.value = lead.dm.firstName;
+                  editLeadForm.editDmLastName.value = lead.dm.lastName;
+                  editLeadForm.editDmPhone.value = lead.dm.phone;
+                  editModal.style.display = "block";
               }
           }
       });
 
-      // --- Función para Cargar Leads (MODIFICADA para añadir el botón) ---
+      // --- GUARDAR CAMBIOS DEL MODAL DE EDICIÓN ---
+      editLeadForm.addEventListener('submit', async (e) => {
+          e.preventDefault();
+          const leadId = editLeadForm.editLeadId.value;
+          const docRef = doc(db, "leads", leadId);
+          try {
+              await updateDoc(docRef, {
+                  businessName: editLeadForm.editBusinessName.value,
+                  dm: {
+                      firstName: editLeadForm.editDmFirstName.value,
+                      lastName: editLeadForm.editDmLastName.value,
+                      phone: editLeadForm.editDmPhone.value
+                  }
+              });
+              editModal.style.display = "none";
+              CargarLeads();
+          } catch (error) { console.error("Error al actualizar: ", error); alert("Error al actualizar."); }
+      });
+      
+      // --- CERRAR MODAL ---
+      closeModalBtn.onclick = () => { editModal.style.display = "none"; }
+      window.onclick = (event) => { if (event.target == editModal) { editModal.style.display = "none"; } }
+
+      // --- CARGAR LEADS (MODIFICADA para añadir botón de Editar) ---
       async function CargarLeads() {
         const statusDiv = document.getElementById('status');
         try {
             const querySnapshot = await getDocs(leadsCollection);
             leadsContainer.innerHTML = '';
-            if (querySnapshot.empty) {
-                statusDiv.innerHTML = '<p>No se encontraron leads.</p>';
-                return;
-            }
             querySnapshot.forEach((doc) => {
                 const lead = doc.data();
-                // ¡AQUÍ AÑADIMOS EL BOTÓN DE ELIMINAR A CADA TARJETA!
-                // Usamos 'data-id' para guardar el ID único del documento en el botón.
                 const leadCardHTML = `
                     <div class="lead-card">
-                        <h2>${lead.businessName || 'Sin Nombre'}</h2>
+                        <h2>${lead.businessName || 'S/N'}</h2>
                         <p><strong>Contacto:</strong> ${lead.dm.firstName || ''} ${lead.dm.lastName || ''}</p>
                         <p><strong>Teléfono:</strong> ${lead.dm.phone || 'N/A'}</p>
                         <p><strong>Progreso:</strong> ${lead.leadProgress || 'N/A'}</p>
+                        <button class="edit-btn" data-id="${doc.id}">Editar</button>
                         <button class="delete-btn" data-id="${doc.id}">Eliminar</button>
                     </div>
                 `;
                 leadsContainer.innerHTML += leadCardHTML;
             });
             statusDiv.style.display = 'none';
-        } catch (error) {
-            console.error("Error al cargar los leads: ", error);
-            statusDiv.innerHTML = '<p>Hubo un error al conectar con la base de datos.</p>';
-        }
+        } catch (error) { console.error("Error al cargar: ", error); }
       }
 
-      // Ejecutamos la función cuando la página carga
       CargarLeads();
     </script>
 </body>
