@@ -21,8 +21,8 @@
         button { background-color: #2a9d8f; color: white; padding: 12px 18px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; font-size: 1em; transition: background-color 0.2s; }
         button:hover { background-color: #268c7f; }
         .delete-btn { background-color: #e63946; margin-top: 10px; }
-        .delete-btn:hover { background-color: #d0313e; }
-        #status { text-align: center; font-size: 1.2em; color: #666; }
+        #add-lead-form { cursor: default; } /* El formulario no debe parecer clickeable */
+        #add-lead-form:hover { transform: none; }
 
         /* --- ESTILOS PARA EL MODAL --- */
         .modal {
@@ -34,19 +34,20 @@
             width: 100%;
             height: 100%;
             overflow: auto;
-            background-color: rgba(0,0,0,0.5); /* Fondo oscuro semitransparente */
+            background-color: rgba(0,0,0,0.6); /* Fondo más oscuro */
             justify-content: center;
             align-items: center;
         }
         .modal-content {
             background-color: #fefefe;
             margin: auto;
-            padding: 20px;
+            padding: 30px;
             border: 1px solid #888;
-            width: 80%;
+            width: 90%;
             max-width: 600px;
             border-radius: 10px;
             position: relative;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
         }
         .close-btn {
             color: #aaa;
@@ -57,10 +58,7 @@
             font-weight: bold;
             cursor: pointer;
         }
-        .close-btn:hover, .close-btn:focus {
-            color: black;
-            text-decoration: none;
-        }
+        .close-btn:hover, .close-btn:focus { color: black; }
     </style>
 </head>
 <body>
@@ -81,7 +79,7 @@
 
     <div id="view-lead-modal" class="modal">
         <div class="modal-content">
-            <span class="close-btn" id="close-modal-btn">&times;</span>
+            <span class="close-btn" id="close-modal-btn">×</span>
             <div id="lead-details-content">
                 </div>
         </div>
@@ -111,67 +109,7 @@
       const closeModalBtn = document.getElementById('close-modal-btn');
       const leadDetailsContent = document.getElementById('lead-details-content');
 
-      // --- LÓGICA DEL MODAL ---
-      closeModalBtn.onclick = () => viewModal.style.display = 'none';
-      window.onclick = (event) => {
-          if (event.target == viewModal) {
-              viewModal.style.display = 'none';
-          }
-      };
-
-      async function mostrarDetalleLead(leadId) {
-          try {
-              const docRef = doc(db, "leads", leadId);
-              const docSnap = await getDoc(docRef);
-
-              if (docSnap.exists()) {
-                  const lead = docSnap.data();
-                  // Creamos el HTML con todos los detalles
-                  leadDetailsContent.innerHTML = `
-                      <h2>${lead.businessName}</h2>
-                      <p><strong>Contacto:</strong> ${lead.dm.firstName} ${lead.dm.lastName}</p>
-                      <p><strong>Teléfono:</strong> ${lead.dm.phone}</p>
-                      <p><strong>Email:</strong> ${lead.dm.email || 'No especificado'}</p>
-                      <p><strong>Dirección:</strong> ${lead.address.fullAddress || 'No especificada'}</p>
-                      <p><strong>Progreso:</strong> ${lead.leadProgress}</p>
-                      <p><strong>Fecha de Creación:</strong> ${lead.createdAt ? new Date(lead.createdAt.seconds * 1000).toLocaleString() : 'N/A'}</p>
-                      `;
-                  viewModal.style.display = 'flex'; // Mostramos el modal
-              } else {
-                  console.log("No se encontró el documento!");
-              }
-          } catch (error) {
-              console.error("Error al obtener el detalle del lead:", error);
-          }
-      }
-
-      // --- LÓGICA DE CLICS (MODIFICADA) ---
-      leadsContainer.addEventListener('click', async (e) => {
-          const card = e.target.closest('.lead-card'); // Buscamos la tarjeta más cercana al clic
-          if (!card) return; // Si no se hizo clic dentro de una tarjeta, no hacemos nada
-
-          // Si el clic fue en el botón de eliminar
-          if (e.target.classList.contains('delete-btn')) {
-              const leadId = e.target.dataset.id;
-              if (confirm("¿Estás seguro de que querés eliminar este lead?")) {
-                  try {
-                      await deleteDoc(doc(db, "leads", leadId));
-                      await CargarLeads();
-                  } catch (error) {
-                      console.error("Error al eliminar el lead: ", error);
-                  }
-              }
-          } else { // Si el clic fue en cualquier otra parte de la tarjeta
-              const leadId = card.id;
-              mostrarDetalleLead(leadId);
-          }
-      });
-      
-      // --- LÓGICA PARA GUARDAR Y CARGAR (sin cambios mayores) ---
-      addLeadForm.addEventListener('submit', async (e) => { e.preventDefault(); /* ...código anterior... */ });
-      async function CargarLeads() { /* ...código anterior... */ }
-      
-      // Reemplazamos las funciones de Cargar y Guardar con las completas para asegurar consistencia
+      // --- LÓGICA PARA GUARDAR NUEVO LEAD ---
       addLeadForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         const submitButton = e.target.querySelector('button[type="submit"]');
@@ -196,6 +134,60 @@
         }
       });
 
+      // --- LÓGICA PARA CLICS EN LA LISTA (VER DETALLES O ELIMINAR) ---
+      leadsContainer.addEventListener('click', async (e) => {
+          const card = e.target.closest('.lead-card');
+          if (!card) return;
+
+          if (e.target.classList.contains('delete-btn')) {
+              e.stopPropagation(); // Evita que se abra el modal al hacer clic en eliminar
+              const leadId = e.target.dataset.id;
+              if (confirm("¿Estás seguro de que querés eliminar este lead?")) {
+                  try {
+                      await deleteDoc(doc(db, "leads", leadId));
+                      await CargarLeads();
+                  } catch (error) {
+                      console.error("Error al eliminar el lead: ", error);
+                  }
+              }
+          } else {
+              const leadId = card.id;
+              mostrarDetalleLead(leadId);
+          }
+      });
+      
+      // --- LÓGICA DEL MODAL ---
+      closeModalBtn.onclick = () => viewModal.style.display = 'none';
+      window.onclick = (event) => {
+          if (event.target == viewModal) {
+              viewModal.style.display = 'none';
+          }
+      };
+
+      async function mostrarDetalleLead(leadId) {
+          try {
+              const docRef = doc(db, "leads", leadId);
+              const docSnap = await getDoc(docRef);
+
+              if (docSnap.exists()) {
+                  const lead = docSnap.data();
+                  leadDetailsContent.innerHTML = `
+                      <h2>${lead.businessName}</h2>
+                      <p><strong>Contacto:</strong> ${lead.dm.firstName} ${lead.dm.lastName}</p>
+                      <p><strong>Teléfono:</strong> ${lead.dm.phone}</p>
+                      <p><strong>Email:</strong> ${lead.dm.email || 'No especificado'}</p>
+                      <p><strong>Dirección:</strong> ${lead.address.fullAddress || 'No especificada'}</p>
+                      <p><strong>Progreso:</strong> ${lead.leadProgress}</p>
+                      <p><strong>Fecha de Creación:</strong> ${lead.createdAt ? new Date(lead.createdAt.seconds * 1000).toLocaleString() : 'N/A'}</p>
+                      `;
+                  viewModal.style.display = 'flex';
+              }
+          } catch (error) {
+              console.error("Error al obtener el detalle del lead:", error);
+          }
+      }
+
+      // --- FUNCIÓN PRINCIPAL PARA CARGAR LEADS ---
       async function CargarLeads() {
         const statusDiv = document.getElementById('status');
         try {
@@ -203,7 +195,7 @@
             const querySnapshot = await getDocs(q);
             leadsContainer.innerHTML = '';
             if (querySnapshot.empty) {
-                statusDiv.innerHTML = '<p>No hay leads para mostrar. ¡Agregá el primero!</p>';
+                statusDiv.innerHTML = '<p>No hay leads para mostrar.</p>';
                 statusDiv.style.display = 'block';
                 return;
             }
@@ -212,8 +204,8 @@
                 let addressHTML = '';
                 if (lead.address && lead.address.fullAddress) {
                     const encodedAddress = encodeURIComponent(lead.address.fullAddress);
-                    const mapsUrl = `https://www.google.com/maps/search/?api=1&query=LA_DIRECCION_AQUI7{encodedAddress}`;
-                    addressHTML = `<p><strong>Dirección:</strong> <a href="${mapsUrl}" target="_blank" title="Abrir en Google Maps">${lead.address.fullAddress}</a></p>`;
+                    const mapsUrl = `https://www.google.com/maps/search/?api=1&query=LA_DIRECCION_AQUI8{encodedAddress}`;
+                    addressHTML = `<p><strong>Dirección:</strong> <a href="${mapsUrl}" target="_blank">${lead.address.fullAddress}</a></p>`;
                 }
                 const leadCardHTML = `
                     <div class="lead-card" id="${doc.id}">
